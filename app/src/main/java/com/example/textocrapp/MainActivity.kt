@@ -8,6 +8,7 @@ import android.net.Uri
 import android.os.Bundle
 import android.os.Environment
 import android.text.method.ScrollingMovementMethod
+import android.view.View
 import android.widget.Button
 import android.widget.ImageView
 import android.widget.TextView
@@ -28,6 +29,7 @@ import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
 import kotlin.Result.Companion.success
+import androidx.core.view.isVisible
 
 class MainActivity : AppCompatActivity() {
 
@@ -50,18 +52,16 @@ class MainActivity : AppCompatActivity() {
         resultText = findViewById(R.id.resultText)
         copyTextButton = findViewById(R.id.copyTextButton)
 
-        requestPermissionLauncher =registerForActivityResult(ActivityResultContracts.RequestPermission()){
-            isGranted ->
-            if (isGranted){
+        requestPermissionLauncher = registerForActivityResult(ActivityResultContracts.RequestPermission()) { isGranted ->
+            if (isGranted) {
                 captureImage()
             } else {
                 Toast.makeText(this, "Camera Permission Needed", Toast.LENGTH_SHORT).show()
             }
         }
 
-        takePictureLauncher = registerForActivityResult(ActivityResultContracts.TakePicture()){
-            success ->
-            if (success){
+        takePictureLauncher = registerForActivityResult(ActivityResultContracts.TakePicture()) { success ->
+            if (success) {
                 currentPhotoPath?.let { path ->
                     val bitmap = BitmapFactory.decodeFile(path)
                     cameraImage.setImageBitmap(bitmap)
@@ -73,6 +73,27 @@ class MainActivity : AppCompatActivity() {
         captureImageButton.setOnClickListener {
             requestPermissionLauncher.launch(Manifest.permission.CAMERA)
         }
+
+        // 🔁 Restore state after rotation
+        if (savedInstanceState != null) {
+            resultText.text = savedInstanceState.getString("ocr_result_text", "")
+            copyTextButton.visibility = if (savedInstanceState.getBoolean("copy_button_visible", false))
+                View.VISIBLE else View.INVISIBLE
+
+            currentPhotoPath = savedInstanceState.getString("photo_path")
+            currentPhotoPath?.let { path ->
+                val bitmap = BitmapFactory.decodeFile(path)
+                cameraImage.setImageBitmap(bitmap)
+            }
+        }
+    }
+
+    // 🧠 Save state before rotation
+    override fun onSaveInstanceState(outState: Bundle) {
+        super.onSaveInstanceState(outState)
+        outState.putString("ocr_result_text", resultText.text.toString())
+        outState.putBoolean("copy_button_visible", copyTextButton.isVisible)
+        outState.putString("photo_path", currentPhotoPath)
     }
 
     private fun createImageFile(): File {
