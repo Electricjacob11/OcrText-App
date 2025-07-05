@@ -30,6 +30,8 @@ import java.util.Date
 import java.util.Locale
 import kotlin.Result.Companion.success
 import androidx.core.view.isVisible
+import android.graphics.Matrix
+import androidx.exifinterface.media.ExifInterface
 
 class MainActivity : AppCompatActivity() {
 
@@ -63,9 +65,10 @@ class MainActivity : AppCompatActivity() {
         takePictureLauncher = registerForActivityResult(ActivityResultContracts.TakePicture()) { success ->
             if (success) {
                 currentPhotoPath?.let { path ->
-                    val bitmap = BitmapFactory.decodeFile(path)
-                    cameraImage.setImageBitmap(bitmap)
-                    recogniseText(bitmap)
+                    val originalBitmap = BitmapFactory.decodeFile(path)
+                    val rotatedBitmap = rotateBitmapIfRequired(path, originalBitmap)
+                    cameraImage.setImageBitmap(rotatedBitmap)
+                    recogniseText(rotatedBitmap)
                 }
             }
         }
@@ -82,8 +85,9 @@ class MainActivity : AppCompatActivity() {
 
             currentPhotoPath = savedInstanceState.getString("photo_path")
             currentPhotoPath?.let { path ->
-                val bitmap = BitmapFactory.decodeFile(path)
-                cameraImage.setImageBitmap(bitmap)
+                val originalBitmap = BitmapFactory.decodeFile(path)
+                val rotatedBitmap = rotateBitmapIfRequired(path, originalBitmap)
+                cameraImage.setImageBitmap(rotatedBitmap)
             }
         }
     }
@@ -137,4 +141,30 @@ class MainActivity : AppCompatActivity() {
             Toast.makeText(this, "No text recognized: ${e.message}", Toast.LENGTH_SHORT).show()
         }
     }
+
+    fun rotateBitmapIfRequired(photoPath: String, bitmap: Bitmap): Bitmap {
+        return try {
+            val exif = ExifInterface(photoPath)
+            val orientation = exif.getAttributeInt(
+                ExifInterface.TAG_ORIENTATION,
+                ExifInterface.ORIENTATION_NORMAL
+            )
+
+            val matrix = Matrix()
+            when (orientation) {
+                ExifInterface.ORIENTATION_ROTATE_90 -> matrix.postRotate(90f)
+                ExifInterface.ORIENTATION_ROTATE_180 -> matrix.postRotate(180f)
+                ExifInterface.ORIENTATION_ROTATE_270 -> matrix.postRotate(270f)
+                // Handle flipped if needed
+                ExifInterface.ORIENTATION_FLIP_HORIZONTAL -> matrix.preScale(-1f, 1f)
+                ExifInterface.ORIENTATION_FLIP_VERTICAL -> matrix.preScale(1f, -1f)
+            }
+
+            Bitmap.createBitmap(bitmap, 0, 0, bitmap.width, bitmap.height, matrix, true)
+        } catch (e: IOException) {
+            e.printStackTrace()
+            bitmap // return original if EXIF read fails
+        }
+    }
+
 }
