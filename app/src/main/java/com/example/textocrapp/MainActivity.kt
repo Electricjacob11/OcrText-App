@@ -122,7 +122,6 @@ class MainActivity : AppCompatActivity() {
             takePictureLauncher.launch(photoUri)
         }
     }
-    // Bees
 
     private fun recogniseText(bitmap: Bitmap) {
         val image = InputImage.fromBitmap(bitmap, 0)
